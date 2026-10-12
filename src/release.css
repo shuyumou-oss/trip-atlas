@@ -1,0 +1,39 @@
+.welcome-dialog { max-width: 560px; }
+.welcome-dialog h2 { font-size: clamp(24px, 3vw, 34px); line-height: 1.45; }
+.welcome-steps { list-style: none; padding: 0; display: grid; gap: 12px; counter-reset: step; margin: 24px 0; }
+.welcome-steps li { counter-increment: step; display: grid; grid-template-columns: 30px 1fr; column-gap: 10px; }
+.welcome-steps li::before { content: counter(step); grid-row: 1 / 3; border-radius: 50%; background: #eaf2e7; color: var(--leaf); display: grid; place-items: center; width: 28px; height: 28px; font-size: 12px; }
+.welcome-steps b { font-size: 14px; }
+.welcome-steps span { color: var(--muted); font-size: 12px; margin-top: 4px; }
+.welcome-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.welcome-actions a { text-decoration: none; display: inline-flex; align-items: center; }
+.welcome-dismiss { color: var(--muted); background: none; border: 0; cursor: pointer; font-size: 12px; padding: 8px 0; }
+.plan-backup { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 14px 0 4px; font-size: 10px; color: var(--muted); }
+.plan-backup button { border: 0; background: none; color: var(--leaf); cursor: pointer; font-size: 10px; padding: 4px 0; }
+.empty-pool-note { font-size: 12px; color: var(--muted); line-height: 1.7; }
+.demo-banner { position: fixed; bottom: 0; left: 0; right: 0; z-index: 55; background: #edf4e8; border-top: 1px solid #d0dfc8; padding: 8px 20px; color: #36593d; font-size: 11px; display: flex; justify-content: space-between; }
+.demo-banner a { color: #36593d; }
+.is-demo .planner { height: calc(100dvh - 106px); }
+.is-demo .day-editor-overlay { padding-bottom: 34px; }
+.extract-options { display: flex; flex-wrap: wrap; gap: 12px; padding: 12px 0; font-size: 12px; }
+.extract-options label { display: flex; gap: 5px; align-items: center; }
+.extract-options input { width: auto; margin: 0; }
+.extract-options span { flex-basis: 100%; color: var(--muted); font-size: 10px; line-height: 1.6; }
+.candidate-evidence { grid-column: 1 / -1; background: #f3f7ef; margin: 0; padding: 7px 10px; font-size: 11px; line-height: 1.6; color: var(--muted); }
+button:focus-visible, a:focus-visible { outline: 2px solid #638067; outline-offset: 3px; }
+@media (max-width: 700px) {
+  .topbar { height: auto; min-height: 68px; flex-wrap: wrap; gap: 8px; padding: 12px 14px; }
+  .topbar-actions { gap: 6px; }
+  .help-trigger { display: none; }
+  .topbar .brand small { display: none; }
+  .plan-settings-trigger { margin-left: auto; }
+  .welcome-dialog { max-height: calc(100dvh - 32px); overflow-y: auto; }
+  .day-editor-content { padding-bottom: 40px; }
+  .transport-segment-controls { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .transport-segment select { min-width: 0; max-width: 100%; }
+  .day-candidate-list { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
+  .is-demo .planner { height: auto; }
+  .workspace-map-stage:has(.map-poi-card) { flex-direction: column; }
+  .workspace-map-stage:has(.map-poi-card) .amap-shell { min-height: 280px; }
+  .map-poi-card { flex-basis: auto; width: 100%; max-height: 300px; }
+}
