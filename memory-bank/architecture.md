@@ -16,7 +16,7 @@
 | `src/features/plan/PlanProvider.tsx` | React Context + useReducer 的旅行计划状态管理，包含导入去重、来源库状态、来源管理、优先级/日期独立更新、单日排序、手动交通段与用户确认的位置保存。 |
 | `src/features/plan/storage.ts` | 版本化 localStorage 的读取、校验、保存，以及旧版互斥状态、位置确认、来源库和单日交通段的兼容迁移。 |
 | `src/features/import/extractCandidates.ts` | 文字攻略的保守候选提取：清单和路线结构优先、路线描述过滤及交通站点分流。 |
-| `src/features/map/AmapMap.tsx` | 高德 JS API 的在线加载、当前城市底图、已确认 POI 的状态色标记、脑图聚焦平移和地图标记点击回调；Key 缺失或加载失败时受控降级。 |
+| `src/features/map/AmapMap.tsx` | 高德 JS API 的在线加载、当前城市底图、已确认 POI 的状态色标记、脑图聚焦平移和地图标记点击回调；未配置 Key 时显示可点击的非道路地点示意图，加载失败时保留明确错误与重试。 |
 | `src/features/map/poiSearch.ts` | 浏览器端 POI 候选查询客户端；只请求本地代理，不接触 Web 服务 Key。 |
 | `src/step-two.css` | 行程设置弹窗、动态脑图网格布局及设置入口样式。 |
 | `vite.config.ts` | Vite 配置及开发环境 `/api/poi-search` 代理：验证地点名和城市 adcode 后按需请求高德 Web 服务。 |
@@ -58,6 +58,8 @@ POI 的 note 字段保存个人备注，transportType 保存交通节点种类�
 Agent-Reach/OpenCLI 仅存在于开发者个人电脑，用来验证公开笔记读取在本机测试账号会话中的技术可行性；它不是应用依赖，不被 Vite 接口调用，也不属于将来网页或线上部署的架构。正式内容读取只能替换为已取得授权的服务端适配器。
 
 2026-10-12：生产接口已实现为 Vercel Serverless 入口，等待实际部署。Vite 本地中间件和 `api/*.js` 都复用 `server/api.mjs` + Node 适配器；生产静态预览自身不提供接口。
+
+2026-10-13：GitHub Pages 静态演示未携带高德 Key 时，`AmapMap` 不再留出空白地图区。它以已确认 POI 的相对经纬度分布绘制“地点示意”，保留分组颜色、编号、聚焦和点击进入详情，但明确说明该图不包含道路或导航，也不会伪装成真实地图。
 
 ## 投递版扩展架构（2026-10-12）
 

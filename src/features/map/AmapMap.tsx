@@ -80,6 +80,37 @@ function markerOffset(poi: Poi, index: number, confirmedPois: Poi[]): [number, n
   return [anchor[0] + shiftX, anchor[1] + shiftY]
 }
 
+function SchematicMap({ cityName, pois, focusedPoiId, highlightedPoiIds, markerLabels, onMarkerClick }: { cityName: string; pois: Poi[]; focusedPoiId: string | null; highlightedPoiIds: string[] | null; markerLabels?: Record<string, string>; onMarkerClick: (poiId: string) => void }) {
+  const confirmedPois = pois.filter((poi) => poi.locationStatus === 'confirmed' && Number.isFinite(poi.longitude) && Number.isFinite(poi.latitude))
+  const highlighted = highlightedPoiIds ? new Set(highlightedPoiIds) : null
+  const longitudes = confirmedPois.map((poi) => poi.longitude!)
+  const latitudes = confirmedPois.map((poi) => poi.latitude!)
+  const minLng = Math.min(...longitudes)
+  const maxLng = Math.max(...longitudes)
+  const minLat = Math.min(...latitudes)
+  const maxLat = Math.max(...latitudes)
+  const lngRange = Math.max(maxLng - minLng, 0.008)
+  const latRange = Math.max(maxLat - minLat, 0.008)
+
+  return <section className="schematic-map" aria-label={`${cityName}地点示意图`}>
+    <div className="schematic-map-water" aria-hidden="true" />
+    <div className="schematic-map-terrain terrain-one" aria-hidden="true" />
+    <div className="schematic-map-terrain terrain-two" aria-hidden="true" />
+    <div className="schematic-map-grid" aria-hidden="true" />
+    <div className="schematic-map-header"><span>地点示意</span><strong>{cityName}</strong></div>
+    {confirmedPois.length ? <div className="schematic-marker-layer">
+      {confirmedPois.map((poi) => {
+        const left = 12 + ((poi.longitude! - minLng) / lngRange) * 76
+        const top = 14 + (1 - (poi.latitude! - minLat) / latRange) * 68
+        const label = markerLabels?.[poi.id] ?? poi.name.slice(0, 4)
+        const dimmed = highlighted && !highlighted.has(poi.id) && focusedPoiId !== poi.id
+        return <button key={poi.id} type="button" className={`schematic-marker ${markerTone(poi)} ${poi.category === '交通' ? 'transport' : ''} ${focusedPoiId === poi.id ? 'is-focused' : ''} ${dimmed ? 'is-dimmed' : ''}`} style={{ left: `${left}%`, top: `${top}%` }} onClick={() => onMarkerClick(poi.id)} aria-label={`查看${poi.name}`}><span>{label}</span></button>
+      })}
+    </div> : <div className="schematic-empty"><b>还没有已定位地点</b><span>确认地点位置后，会在这里显示它们的相对分布。</span></div>}
+    <div className="schematic-map-note"><span>示意地图</span><p>不含道路与导航；配置地图服务后显示真实底图。</p></div>
+  </section>
+}
+
 export function AmapMap({ cityName, pois, focusedPoiId, highlightedPoiIds, markerLabels, onMarkerClick, onResetView }: { cityName: string; pois: Poi[]; focusedPoiId: string | null; highlightedPoiIds: string[] | null; markerLabels?: Record<string, string>; onMarkerClick: (poiId: string) => void; onResetView: () => void }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<AMapInstance | null>(null)
@@ -171,7 +202,7 @@ export function AmapMap({ cityName, pois, focusedPoiId, highlightedPoiIds, marke
   }
 
   if (!isConfigured) {
-    return <div className="map-empty-state"><span className="map-compass">⌖</span><div><b>地图尚未配置</b><p>整理地点的功能不受影响。配置高德 Web JS API Key 与安全密钥后，这里会显示「{cityName}」底图。</p><code>VITE_AMAP_JS_KEY · VITE_AMAP_SECURITY_JS_CODE</code></div></div>
+    return <SchematicMap cityName={cityName} pois={pois} focusedPoiId={focusedPoiId} highlightedPoiIds={highlightedPoiIds} markerLabels={markerLabels} onMarkerClick={onMarkerClick} />
   }
 
   if (error) return <div className="map-empty-state map-error"><span className="map-compass">!</span><div><b>地图暂时无法加载</b><p>{error}</p><button className="map-reload-button" type="button" onClick={() => { setError(null); setReloadToken((token) => token + 1) }}>重新加载地图</button></div></div>

@@ -469,6 +469,43 @@
 .map-reload-button { border: 1px solid #d7a896; border-radius: 7px; background: #fffefa; color: #a45541; cursor: pointer; font-size: 11px; font-weight: 700; margin-top: 5px; padding: 7px 10px; }
 .map-reload-button:hover { background: #fff0e9; }
 
+.schematic-map {
+  background: #e8eee8;
+  border: 1px solid #dce5da;
+  border-radius: 16px;
+  height: min(480px, 58vw);
+  margin: 0 auto;
+  max-width: 1296px;
+  min-height: 300px;
+  overflow: hidden;
+  position: relative;
+}
+
+.schematic-map-water { background: #b9dce8; border-radius: 46% 54% 50% 50% / 42% 40% 60% 58%; height: 58%; left: 27%; opacity: .92; position: absolute; top: 19%; transform: rotate(-8deg); width: 49%; }
+.schematic-map-terrain { background: #d1e2c2; border-radius: 50%; filter: blur(.1px); opacity: .92; position: absolute; }
+.schematic-map-terrain.terrain-one { height: 75%; left: -13%; top: 23%; width: 43%; }
+.schematic-map-terrain.terrain-two { height: 63%; right: -9%; top: -21%; width: 38%; }
+.schematic-map-grid { background-image: linear-gradient(28deg, transparent 48%, #fffdf899 49%, #fffdf899 51%, transparent 52%), linear-gradient(-46deg, transparent 48%, #fffdf899 49%, #fffdf899 51%, transparent 52%); background-size: 74px 74px, 96px 96px; inset: 0; opacity: .65; position: absolute; }
+.schematic-map-header { align-items: baseline; color: #244b62; display: flex; gap: 9px; left: 21px; position: absolute; top: 17px; z-index: 2; }
+.schematic-map-header span { background: #fffdf8dd; border: 1px solid #cfddd7; border-radius: 5px; font-size: 10px; padding: 5px 7px; }
+.schematic-map-header strong { font-family: Georgia, "Noto Sans SC", serif; font-size: 20px; letter-spacing: .04em; }
+.schematic-marker-layer { inset: 0; position: absolute; z-index: 3; }
+.schematic-marker { align-items: center; background: #789385; border: 2px solid #fffefa; border-radius: 50%; box-shadow: 0 2px 7px #25352e55; color: #fff; cursor: pointer; display: flex; font: 700 9px/1 "Noto Sans SC", sans-serif; height: 34px; justify-content: center; padding: 4px; position: absolute; transform: translate(-50%, -50%); transition: transform .18s ease, opacity .18s ease, box-shadow .18s ease; width: 34px; }
+.schematic-marker.must { background: var(--must); }
+.schematic-marker.maybe { background: #c69b45; }
+.schematic-marker.day { background: var(--leaf); }
+.schematic-marker.transport { border-radius: 999px; height: 24px; min-width: 58px; padding: 3px 6px; width: auto; }
+.schematic-marker.transport span { font-size: 8px; }
+.schematic-marker.is-focused { box-shadow: 0 0 0 3px #fffefa, 0 0 0 5px #47746388; transform: translate(-50%, -50%) scale(1.15); z-index: 5; }
+.schematic-marker.is-dimmed { opacity: .4; }
+.schematic-marker:hover { transform: translate(-50%, -50%) scale(1.08); }
+.schematic-empty { align-items: center; color: var(--muted); display: flex; flex-direction: column; gap: 6px; inset: 0; justify-content: center; position: absolute; text-align: center; z-index: 3; }
+.schematic-empty b { color: var(--ink); font-size: 14px; }
+.schematic-empty span { font-size: 11px; max-width: 250px; }
+.schematic-map-note { align-items: center; background: #fffdf8dd; border: 1px solid #cfddd7; border-radius: 6px; bottom: 15px; color: #4d6875; display: flex; gap: 8px; left: 18px; padding: 6px 8px; position: absolute; z-index: 4; }
+.schematic-map-note span { color: var(--ink); font-size: 10px; font-weight: 800; }
+.schematic-map-note p { font-size: 10px; margin: 0; }
+
 .trip-map-marker {
   align-items: center;
   background: #6f8f79;
@@ -499,7 +536,7 @@
 @media (max-width: 650px) {
   .map-preview-heading { display: block; }
   .map-preview-heading > p { margin-top: 12px; text-align: left; }
-  .amap-shell, .map-empty-state { height: 330px; min-height: 0; }
+  .amap-shell, .map-empty-state, .schematic-map { height: 330px; min-height: 0; }
 }
 
 .day-scroll-list.compact {
@@ -586,7 +623,7 @@ button.root-node:hover {
 .workspace-heading h2 { font-size: 25px; font-weight: 600; margin: 0; letter-spacing: -.8px; }
 .workspace-heading > p { color: var(--muted); font-size: 11px; text-align: right; margin: 0; }
 .workspace-map-stage { flex: 1 1 auto; min-height: 270px; position: relative; }
-.workspace-map-stage .amap-shell, .workspace-map-stage .map-empty-state { height: 100%; min-height: 0; width: 100%; max-width: none; }
+.workspace-map-stage .amap-shell, .workspace-map-stage .map-empty-state, .workspace-map-stage .schematic-map { height: 100%; min-height: 0; width: 100%; max-width: none; }
 /* 高德版权信息必须保留；在工作台地图内固定留白，避免压到下方安排面板。 */
 .workspace-map-stage .amap-shell { position: relative; isolation: isolate; }
 .workspace-map-stage .amap-shell .amap-copyright { right: 8px !important; bottom: 8px !important; left: auto !important; z-index: 6 !important; padding: 2px 5px; border-radius: 4px; background: rgb(255 255 255 / 82%); line-height: 1.25; }
@@ -641,6 +678,7 @@ button.root-node:hover {
 .day-editor-map { display: flex; flex-direction: column; min-height: 455px; overflow: hidden; }
 .day-editor-map .day-editor-section-heading { padding: 16px 18px 12px; }
 .day-editor-map .amap-shell { flex: 1 1 auto; min-height: 300px; max-width: none; width: 100%; border: 0; border-radius: 0; position: relative; isolation: isolate; }
+.day-editor-map .schematic-map { flex: 1 1 auto; min-height: 300px; max-width: none; width: 100%; border: 0; border-radius: 0; }
 .day-editor-map .map-overview-control { top: 12px; left: 12px; right: auto; }
 .day-editor-section-heading { align-items: flex-start; display: flex; justify-content: space-between; gap: 12px; }
 .day-editor-section-heading .eyebrow { margin: 0 0 5px; }
@@ -713,7 +751,7 @@ button.root-node:hover {
   .day-editor-header h1 { font-size: 22px; }
   .day-editor-content { grid-template-columns: 1fr; padding: 14px; }
   .day-editor-map, .day-timeline-panel { min-height: 390px; }
-  .day-editor-map .amap-shell { min-height: 250px; }
+  .day-editor-map .amap-shell, .day-editor-map .schematic-map { min-height: 250px; }
   .day-candidate-panel { grid-column: auto; }
   .day-timeline-actions { grid-template-columns: minmax(132px, 1.1fr) minmax(0, .9fr); padding-left: 60px; }
   .transport-segment { padding-left: 16px; }
