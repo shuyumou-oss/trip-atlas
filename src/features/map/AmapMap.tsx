@@ -129,9 +129,10 @@ export function AmapMap({ cityName, pois, focusedPoiId, highlightedPoiIds, marke
   const key = import.meta.env.VITE_AMAP_JS_KEY as string | undefined
   const securityJsCode = import.meta.env.VITE_AMAP_SECURITY_JS_CODE as string | undefined
   const isConfigured = Boolean(key && securityJsCode)
+  const useSchematicFallback = !isConfigured || import.meta.env.VITE_STATIC_DEMO === 'true'
 
   useEffect(() => {
-    if (!isConfigured || !containerRef.current) return
+    if (useSchematicFallback || !containerRef.current) return
     let cancelled = false
     setError(null)
     loadAmap(key!, securityJsCode!)
@@ -153,7 +154,7 @@ export function AmapMap({ cityName, pois, focusedPoiId, highlightedPoiIds, marke
       markersRef.current = []
       setIsMapReady(false)
     }
-  }, [cityName, isConfigured, key, reloadToken, securityJsCode])
+  }, [cityName, key, reloadToken, securityJsCode, useSchematicFallback])
 
   useEffect(() => {
     const map = mapRef.current
@@ -201,7 +202,7 @@ export function AmapMap({ cityName, pois, focusedPoiId, highlightedPoiIds, marke
     onResetView()
   }
 
-  if (!isConfigured) {
+  if (useSchematicFallback) {
     return <SchematicMap cityName={cityName} pois={pois} focusedPoiId={focusedPoiId} highlightedPoiIds={highlightedPoiIds} markerLabels={markerLabels} onMarkerClick={onMarkerClick} />
   }
 
