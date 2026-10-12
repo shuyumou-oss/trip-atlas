@@ -54,6 +54,8 @@ const transportModeLabels: Record<TransportMode, string> = { walk: '步行', met
 
 function App() {
   const { plan, dispatch, storageNotice } = usePlan()
+  const isStaticDemo = import.meta.env.VITE_STATIC_DEMO === 'true'
+  const appBaseUrl = import.meta.env.BASE_URL
   const isDemo = new URLSearchParams(window.location.search).get('demo') === '1'
   const wantsNewPlan = new URLSearchParams(window.location.search).get('new') === '1'
   const [isWelcomeOpen, setIsWelcomeOpen] = useState(plan.id === 'new-plan' && !plan.pois.length && !isDemo && !wantsNewPlan)
@@ -68,6 +70,7 @@ function App() {
   const [backupError, setBackupError] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   useEffect(() => {
+    if (isStaticDemo) return
     let cancelled = false
     fetch('/api/config').then(response => response.json()).then(config => {
       if (!cancelled) setAiAvailable(config.aiAvailable === true)
@@ -103,7 +106,7 @@ function App() {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
   const groupedUnscheduledPriority = (priority: PoiPriority) => plan.pois.filter((poi) => poi.priority === priority && poi.scheduledDay === null)
   const groupedDay = (day: number) => orderedDayPois(plan, day)
-  const plannedCount = plan.pois.filter((poi) => poi.priority !== 'normal' || poi.scheduledDay !== null).length
+  const plannedCount = plan.pois.filter((poi) => poi.scheduledDay !== null).length
   const poiCandidates = candidates.filter((candidate) => candidate.kind === 'poi')
   const transportCandidates = candidates.filter((candidate) => candidate.kind === 'transport')
   const selectedPoi = plan.pois.find((poi) => poi.id === selectedPoiId) ?? null
@@ -172,6 +175,7 @@ function App() {
     try {
       let cityAdcode = findCityAdcode(cityName)
       if (cityAdcode === 'pending') {
+        if (isStaticDemo) throw new Error('公开演示版暂不支持在线查询新城市，请选择常用城市，或在本地/完整线上版继续。')
         const response = await fetch('/api/city-search', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: cityName }), signal: AbortSignal.timeout(25000) })
         const payload = await response.json()
         if (!response.ok) throw new Error(payload.error)
@@ -305,28 +309,28 @@ function App() {
   return (
     <div className={`app-shell ${isDemo ? 'is-demo' : ''}`}>
       <header className="topbar">
-        <a className="brand" href="#" aria-label="行囊首页"><span className="brand-mark">◇</span><span>行囊</span><small>TRIP ATLAS</small></a>
+        <a className="brand" href="#" aria-label="行囊首页"><span className="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><rect x="5" y="7" width="14" height="14" rx="4" stroke="currentColor" strokeWidth="1.8" /><path d="M9 7V5a3 3 0 0 1 6 0v2M9 12h6M9 16h4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg></span><span>行囊</span></a>
         <button className="plan-settings-trigger" type="button" onClick={openPlanSettings} aria-haspopup="dialog"><span className="summary-dot" /><span className="plan-settings-label">行程设置</span><span className="plan-settings-value">{plan.cityName} · {plan.days} 天</span><span aria-hidden="true">⌄</span></button>
-        <div className="topbar-actions"><button className="source-library-trigger help-trigger" onClick={() => setIsWelcomeOpen(true)}>如何开始</button><button className="source-library-trigger" type="button" onClick={() => setIsSourceLibraryOpen(true)}>来源库</button><button className="add-button" type="button" onClick={openImport}>＋ 导入攻略</button></div>
+        <div className="topbar-actions"><details className="workspace-tools"><summary>更多</summary><div><button onClick={() => setIsWelcomeOpen(true)}>使用指南</button><button onClick={() => downloadPlan(plan)}>导出计划备份</button><button onClick={() => fileRef.current?.click()}>恢复计划备份</button></div></details><button className="source-library-trigger" type="button" onClick={() => setIsSourceLibraryOpen(true)}>来源库</button><button className="add-button" type="button" onClick={openImport}>＋ 导入攻略</button></div>
       </header>
       <DndContext sensors={sensors} onDragStart={(event) => setActiveDragPoiId(String(event.active.data.current?.poiId ?? event.active.id))} onDragCancel={() => setActiveDragPoiId(null)} onDragEnd={handleDragEnd}>
       <main className="planner">
         <section className="poi-panel">
-          <div className="section-heading"><div><p className="eyebrow">你的地点池</p><h1>慢慢挑，<br />再慢慢安排。</h1></div><div className="poi-heading-actions"><span className="poi-count">{plan.pois.length} 个地点</span><div className="poi-manage"><button className="poi-manage-trigger" type="button" aria-label="管理地点池" aria-expanded={isPoiManageOpen} onClick={() => setIsPoiManageOpen((current) => !current)}>···</button>{isPoiManageOpen && <div className="poi-manage-menu"><button type="button" disabled={!plan.pois.length} onClick={() => { setIsPoiManageOpen(false); setIsClearPoiDialogOpen(true) }}>清空地点池</button></div>}</div></div></div>
-          <p className="setup-hint">先设置目的地和旅行天数，再开始整理攻略地点。<button type="button" onClick={openPlanSettings}>去设置</button></p>
-          <p className="state-note">点地点可安排，或直接拖到脑图节点；点“来源”可查看这处地点来自哪些攻略。</p>
-          <section className="poi-group" aria-label="游玩与消费地点"><div className="poi-group-heading"><h3>游玩与消费地点</h3><span>{filteredPlacePois.length} 个</span></div><div className="filter-tabs"><button className={activeFilter === 'all' ? 'active' : ''} type="button" onClick={() => setActiveFilter('all')}>全部 {plan.pois.length}</button>{placeCategories.map((category) => <button className={activeFilter === category ? 'active' : ''} key={category} type="button" onClick={() => setActiveFilter(category)}>{category.replace(' / 休闲', '').replace(' / 购物', '')} {placePois.filter((poi) => poi.category === category).length}</button>)}</div><div className="poi-list">{filteredPlacePois.length ? filteredPlacePois.map((poi) => <DraggablePoiChip key={poi.id} poi={poi} onAssign={() => openPoi(poi.id)} onViewSources={() => openPoi(poi.id)} />) : <p className="empty-branch">这个类别还没有地点。</p>}</div></section>
+          <div className="section-heading"><div className="pool-title"><h1>地点池</h1><p>收藏的地方，在这里慢慢挑。</p></div><div className="poi-heading-actions"><span className="poi-count">{plan.pois.length} 个地点</span><div className="poi-manage"><button className="poi-manage-trigger" type="button" aria-label="管理地点池" aria-expanded={isPoiManageOpen} onClick={() => setIsPoiManageOpen((current) => !current)}>···</button>{isPoiManageOpen && <div className="poi-manage-menu"><button type="button" disabled={!plan.pois.length} onClick={() => { setIsPoiManageOpen(false); setIsClearPoiDialogOpen(true) }}>清空地点池</button></div>}</div></div></div>
+          {!plan.pois.length && <p className="setup-hint">从目的地开始，准备你的旅行。<button type="button" onClick={openPlanSettings}>设置城市与天数</button></p>}
+          <p className="state-note">点地点查看详情，拖入下方分组安排日期。</p>
+          <section className="poi-group" aria-label="游玩与消费地点"><div className="poi-group-heading"><h3>游玩与消费地点</h3><span>{activeFilter === 'all' ? `${placePois.length} 个` : `显示 ${filteredPlacePois.length} 个`}</span></div><div className="filter-tabs"><button className={activeFilter === 'all' ? 'active' : ''} type="button" onClick={() => setActiveFilter('all')}>全部 {placePois.length}</button>{placeCategories.map((category) => <button className={activeFilter === category ? 'active' : ''} key={category} type="button" onClick={() => setActiveFilter(category)}>{category.replace(' / 休闲', '').replace(' / 购物', '')} {placePois.filter((poi) => poi.category === category).length}</button>)}</div><div className="poi-list">{filteredPlacePois.length ? filteredPlacePois.map((poi) => <DraggablePoiChip key={poi.id} poi={poi} onAssign={() => openPoi(poi.id)} onViewSources={() => openPoi(poi.id)} />) : <p className="empty-branch">这个类别还没有地点。</p>}</div></section>
           <details className="transport-poi-group"><summary>交通节点 <span>{transportPois.length} 个</span></summary><p>抵达、换乘或离开时会用到的地点。</p><div className="poi-list">{transportPois.length ? transportPois.map((poi) => <DraggablePoiChip key={poi.id} poi={poi} onAssign={() => openPoi(poi.id)} onViewSources={() => openPoi(poi.id)} />) : <span className="empty-branch">还没有交通节点。</span>}</div></details>
           {!placePois.length && <p className="empty-pool-note">还没有游玩地点。导入一段攻略文字，或手动添加你想去的地方。</p>}
           <button className="manual-add" type="button" onClick={() => setIsManualOpen(true)}>＋ 手动添加地点</button>
-          <div className="plan-backup"><span>{isDemo ? '示例计划独立保存' : '仅保存在当前浏览器'}</span><button onClick={() => downloadPlan(plan)}>导出备份</button><button onClick={() => fileRef.current?.click()}>恢复备份</button><input ref={fileRef} type="file" accept=".json,application/json" hidden onChange={event => void restoreBackup(event.target.files?.[0])} /></div>
+          <div className="plan-backup"><span>{isDemo ? '示例计划独立保存' : '仅保存在当前浏览器'}</span><input ref={fileRef} type="file" accept=".json,application/json" hidden onChange={event => void restoreBackup(event.target.files?.[0])} /></div>
           {backupError && <p className="import-error" role="alert">{backupError}</p>}
           {storageNotice?.includes('失败') && <p className="import-error" role="alert">{storageNotice}</p>}
         </section>
         <section className="map-workspace" aria-label="地图与旅行安排">
           <div className="workspace-heading">
-            <div><p className="eyebrow">对照地图，安排旅行</p><h2>{plan.cityName}，慢慢串起来。</h2></div>
-            <p>已确认 {confirmedLocationCount} 个位置 · 已整理 {plannedCount} 个地点</p>
+            <div><h2>{plan.cityName}旅行计划</h2><span className="workspace-subtitle">{plan.days} 天的旅程，由你安排</span></div>
+            <p>地图已定位 {confirmedLocationCount} 个<span className="stats-separator" />已安排 {plannedCount} 个</p>
           </div>
           <div className="workspace-map-stage">
             <AmapMap cityName={plan.cityName} pois={plan.pois} focusedPoiId={focusedPoiId} highlightedPoiIds={highlightedPoiIds}
@@ -349,15 +353,15 @@ function App() {
             {isArrangementOpen && <div className="arrangement-board" id="arrangement-board">
               {arrangementGroups.map((group) => <Branch key={group.id} className={`${group.tone} ${effectiveMapGroup === group.id ? 'is-active-group' : ''}`} title={group.label} subtitle={group.id.startsWith('priority:') ? '尚未安排日期' : `${group.pois.length} 个地点`} dropId={group.id} locations={group.pois} onSelect={focusPoi} onOpenDay={group.id.startsWith('day:') ? () => openDayEditor(Number(group.id.slice(4))) : undefined} />)}
             </div>}
-            <p className="arrangement-footnote">{effectiveMapGroup === 'all' ? '点地图标记聚焦，再点一次安排日期。' : '地图突出当前分组，淡色地点仍可点击加入安排。'}{storageNotice && ` · ${storageNotice}`}</p>
+            <p className="arrangement-footnote">{effectiveMapGroup === 'all' ? '点地图标记聚焦，再点一次安排日期。' : '地图突出当前分组，淡色地点仍可点击加入安排。'}</p>
           </section>
         </section>
       </main>
       <DragOverlay>{activeDragPoi ? <span className="drag-overlay">{activeDragPoi.name}</span> : null}</DragOverlay>
       </DndContext>
-      {isWelcomeOpen && <Welcome onCreate={() => { if (isDemo) { window.location.href = '/?new=1'; return } setIsWelcomeOpen(false); openPlanSettings(); setIsNewPlan(true) }} onClose={() => setIsWelcomeOpen(false)} />}
+      {isWelcomeOpen && <Welcome onCreate={() => { if (isDemo) { window.location.href = `${appBaseUrl}?new=1`; return } setIsWelcomeOpen(false); openPlanSettings(); setIsNewPlan(true) }} onClose={() => setIsWelcomeOpen(false)} />}
       {isManualOpen && <ManualPoiDialog onClose={() => setIsManualOpen(false)} />}
-      {isDemo && <div className="demo-banner">杭州示例体验 · 与你的计划分开保存<a href="/">返回我的计划 →</a></div>}
+      {isDemo && <div className="demo-banner">杭州示例体验 · 与你的计划分开保存<a href={appBaseUrl}>返回我的计划 →</a></div>}
       {isPlanSettingsOpen && <div className="day-picker-backdrop" onClick={() => setIsPlanSettingsOpen(false)}>
         <section className="day-picker plan-settings" role="dialog" aria-modal="true" aria-label="旅行计划设置" onClick={(event) => event.stopPropagation()}>
           <div><p className="eyebrow">旅行计划</p><h2>先定目的地，<br />再慢慢安排。</h2></div>
@@ -399,24 +403,36 @@ function App() {
           <div className="dialog-actions"><button className="subtle-button" type="button" onClick={() => { setIsCandidateReviewOpen(false); setIsImportOpen(true) }}>返回编辑</button><button className="primary-button" type="button" onClick={confirmCandidates}>加入地点池 <span>→</span></button></div>
         </section>
       </div>}
-      {locationPoi && <MapLocationDialog poi={locationPoi} cityName={plan.cityName} cityAdcode={plan.cityAdcode} onClose={() => setLocationPoiId(null)} />}
+      {locationPoi && <MapLocationDialog poi={locationPoi} cityName={plan.cityName} cityAdcode={plan.cityAdcode} isStaticDemo={isStaticDemo} onClose={() => setLocationPoiId(null)} />}
       {isSourceLibraryOpen && <SourceLibraryDialog onClose={() => setIsSourceLibraryOpen(false)} onFallback={startTextFallback} onDelete={setSourceToDelete} />}
       {sourceToDelete && <DeleteSourceDialog source={sourceToDelete} orphanedPoiCount={orphanedPoiCount} onClose={() => setSourceToDelete(null)} />}
       {isClearPoiDialogOpen && <div className="day-picker-backdrop" onClick={() => setIsClearPoiDialogOpen(false)}><section className="day-picker clear-pois-dialog" role="dialog" aria-modal="true" aria-label="清空地点池" onClick={(event) => event.stopPropagation()}><div><p className="eyebrow">管理地点池</p><h2>清空全部地点？</h2></div><p className="dialog-copy">将删除当前地点池中的 {plan.pois.length} 个地点，以及它们的脑图安排、地图确认信息和个人备注。</p><p className="delete-source-warning">攻略来源库与原帖链接会保留，不会被删除。此操作当前无法撤销。</p><div className="dialog-actions"><button className="subtle-button" type="button" onClick={() => setIsClearPoiDialogOpen(false)}>取消</button><button className="danger-button" type="button" onClick={() => { dispatch({ type: 'clear-all-pois' }); setSelectedPoiId(null); setLocationPoiId(null); setMapFocusedPoiId(null); setIsClearPoiDialogOpen(false) }}>清空 {plan.pois.length} 个地点</button></div></section></div>}
-      {editingDay !== null && <DayEditor day={editingDay} onBack={() => setEditingDay(null)} />}
+      {editingDay !== null && <DayEditor key={editingDay} day={editingDay} onChangeDay={setEditingDay} onBack={() => setEditingDay(null)} />}
     </div>
   )
 }
 
 function DraggablePoiChip({ poi, onAssign, onViewSources }: { poi: Poi; onAssign: () => void; onViewSources: () => void }) {
+  const { dispatch } = usePlan()
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: `pool:${poi.id}`, data: { poiId: poi.id } })
   const style = transform ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` } : undefined
-  return <span className={`poi-chip-wrap ${poi.category === '交通' ? 'transport-chip' : ''} ${statusClass(poi)} ${isDragging ? 'is-dragging' : ''}`} ref={setNodeRef} style={style}><button className="poi-chip" type="button" {...listeners} {...attributes} onClick={onAssign}>{poi.name}{poi.category === '交通' && <i className="transport-chip-type">{poi.transportType ?? '交通'}</i>}{poi.priority === 'must' && <i className="chip-priority">★</i>}</button><button className="source-button" type="button" onClick={onViewSources} aria-label={`查看${poi.name}的来源`}>来源 {poi.sources.length}</button></span>
+  return <span className={`poi-chip-wrap ${poi.category === '交通' ? 'transport-chip' : ''} ${statusClass(poi)} ${isDragging ? 'is-dragging' : ''}`} ref={setNodeRef} style={style}><button className="poi-chip" type="button" {...listeners} {...attributes} onClick={onAssign}><PlaceIcon category={poi.category} /><span className="pool-poi-name">{poi.name}</span><i className="pool-category">{poi.category === '交通' ? poi.transportType ?? '交通' : poi.category.split(' / ')[0]}</i></button><button className="source-button" type="button" onClick={onViewSources} aria-label={`查看${poi.name}的来源`}>来源 {poi.sources.length}</button><button className="pool-star" type="button" aria-label={`${poi.priority === 'must' ? '取消' : '标为'}必去：${poi.name}`} aria-pressed={poi.priority === 'must'} onClick={() => dispatch({ type: 'set-poi-arrangement', poiId: poi.id, priority: poi.priority === 'must' ? 'normal' : 'must' })}>{poi.priority === 'must' ? '★' : '☆'}</button></span>
+}
+
+function PlaceIcon({ category }: { category: PoiCategory }) {
+  const paths: Record<string, string> = {
+    '景点': 'M3 20 10 7l4 7 3-5 5 11H3Z M7 13l3 2 2-3 M17 5h.01',
+    '美食': 'M3 11h18c-1 6-4 9-9 9s-8-3-9-9Z M6 7l2-4 M12 7l2-4 M18 7l2-4',
+    '咖啡 / 休闲': 'M4 8h13v7a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5V8Z M17 9h2a3 3 0 0 1 0 6h-2 M8 4v1 M12 3v2',
+    '街区 / 购物': 'M4 21V9h7v12 M11 21V4h8v17 M2 21h20 M7 12v2 M14 8h2 M14 12h2 M14 16h2',
+    '交通': 'M6 3h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z M4 11h16 M8 15h.01 M16 15h.01 M8 19l-2 3 M16 19l2 3',
+  }
+  return <span className={`place-icon ${category === '美食' ? 'food' : category === '交通' ? 'transit' : ''}`} aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d={paths[category] ?? 'M12 22s8-8 8-13a8 8 0 1 0-16 0c0 5 8 13 8 13Z M9 9a3 3 0 1 0 6 0 3 3 0 0 0-6 0'} /></svg></span>
 }
 
 function Branch({ className, title, subtitle, dropId, locations, onSelect, onOpenDay }: { className: string; title: string; subtitle?: string; dropId: string; locations: Poi[]; onSelect: (poiId: string) => void; onOpenDay?: () => void }) {
   const { isOver, setNodeRef } = useDroppable({ id: dropId })
-  return <section className={`branch ${className} ${isOver ? 'is-drop-target' : ''}`} ref={setNodeRef}><h3><span>{title}</span>{onOpenDay && <button className="day-edit-link" type="button" onClick={onOpenDay}>编辑 →</button>}</h3>{subtitle && <p>{subtitle}</p>}<div className="branch-items">{locations.length ? locations.map((poi) => <DraggableBranchItem poi={poi} key={poi.id} onSelect={() => onSelect(poi.id)} />) : <span className="empty-branch">拖到这里安排</span>}</div></section>
+  return <section className={`branch ${className} ${isOver ? 'is-drop-target' : ''}`} data-day={dropId.startsWith('day:') ? dropId.slice(4) : undefined} ref={setNodeRef}><h3><span>{title}</span>{onOpenDay && <button className="day-edit-link" type="button" onClick={onOpenDay}>编辑 ↗</button>}</h3>{subtitle && <p>{subtitle}</p>}<div className="branch-items">{locations.length ? locations.map((poi) => <DraggableBranchItem poi={poi} key={poi.id} onSelect={() => onSelect(poi.id)} />) : <span className="empty-branch">拖到这里安排</span>}</div></section>
 }
 
 function DraggableBranchItem({ poi, onSelect }: { poi: Poi; onSelect: () => void }) {
@@ -425,7 +441,7 @@ function DraggableBranchItem({ poi, onSelect }: { poi: Poi; onSelect: () => void
   return <button className={`branch-item ${statusClass(poi)} ${isDragging ? 'is-dragging' : ''}`} ref={setNodeRef} style={style} type="button" {...listeners} {...attributes} onClick={onSelect}>{poi.name}{poi.priority === 'must' && poi.scheduledDay && <span className="branch-priority">必去</span>}</button>
 }
 
-function DayEditor({ day, onBack }: { day: number; onBack: () => void }) {
+function DayEditor({ day, onBack, onChangeDay }: { day: number; onBack: () => void; onChangeDay: (day: number) => void }) {
   const { plan, dispatch } = usePlan()
   const [activePoiId, setActivePoiId] = useState<string | null>(null)
   const dayPois = orderedDayPois(plan, day)
@@ -449,22 +465,22 @@ function DayEditor({ day, onBack }: { day: number; onBack: () => void }) {
   return <section className="day-editor-overlay" aria-label={`Day ${day} 单日编辑页`}>
     <header className="day-editor-header">
       <button className="back-to-overview" type="button" onClick={onBack}>← 返回总览</button>
-      <div><p className="eyebrow">单日编辑</p><h1>Day {day} · 慢慢串起来。</h1></div>
+      <div className="day-title"><h1>Day {day}</h1><span>{plan.cityName}</span><select aria-label="切换编辑日期" value={day} onChange={event => onChangeDay(Number(event.target.value))}>{Array.from({ length: plan.days }, (_, i) => <option key={i} value={i + 1}>Day {i + 1}</option>)}</select></div>
       <p>{dayPois.length} 个地点{linkedTransportPois.length ? ` · 关联 ${linkedTransportPois.length} 个交通节点` : ''} · 已确认 {confirmedCount} 个位置</p>
     </header>
     <main className="day-editor-content">
         <section className="day-editor-map" aria-label={`Day ${day} 地图`}>
-          <div className="day-editor-section-heading"><div><p className="eyebrow">当日地图</p><h2>按行程顺序编号</h2></div><span>仅显示已确认位置</span></div>
+          <div className="day-editor-section-heading"><div><h2>当日地图</h2></div><span>地点按行程编号</span></div>
           <AmapMap cityName={plan.cityName} pois={dayMapPois} focusedPoiId={activePoiId} highlightedPoiIds={null} markerLabels={markerLabels}
             onMarkerClick={selectPoi} onResetView={() => setActivePoiId(null)} />
           {!confirmedCount && <p className="day-map-empty-note">当前 Day 的地点尚未确认地图位置；仍可先在右侧编排行程。</p>}
         </section>
         <section className="day-timeline-panel" aria-label={`Day ${day} 今日行程`}>
-          <div className="day-editor-section-heading"><div><p className="eyebrow">今日行程</p><h2>时段与地点备注</h2></div><span>{dayPois.length} 站</span></div>
+          <div className="day-editor-section-heading"><div><h2>今日行程</h2></div><span>{dayPois.length} 站</span></div>
           <DayTimeline day={day} pois={dayPois} activePoiId={activePoiId} onSelectPoi={selectPoi} />
         </section>
         <section className="day-candidate-panel" aria-label="从未安排地点加入">
-          <div className="day-editor-section-heading"><div><p className="eyebrow">从地点池加入</p><h2>未安排地点</h2></div><span>{unassignedPois.length} 个</span></div>
+          <div className="day-editor-section-heading"><div><h2>从地点池加入</h2></div><span>{unassignedPois.length} 个</span></div>
           <div className="day-candidate-list">{unassignedPois.length ? unassignedPois.map((poi) => <article key={poi.id} className="day-candidate-card"><button type="button" aria-label={`查看${poi.name}`} onClick={() => addToDay(poi.id)}><b>{poi.name}</b><span>{poi.category}</span></button><button className="day-add-button" type="button" aria-label={`加入${poi.name}到Day ${day}`} onClick={() => addToDay(poi.id)}>＋ 加入</button></article>) : <p className="day-candidate-empty">所有地点都已有日期安排。</p>}</div>
         </section>
       </main>
@@ -501,6 +517,9 @@ function DayTimeline({ day, pois, activePoiId, onSelectPoi }: { day: number; poi
 
 function TransportSegmentItem({ fromPoi, toPoi, transportNodes, segment, onChange }: { fromPoi: Poi; toPoi: Poi; transportNodes: Poi[]; segment?: TransportSegment; onChange: (change: { mode?: TransportMode | null; durationMinutes?: number | null; viaPoiId?: string | null }) => void }) {
   const [durationDraft, setDurationDraft] = useState(segment?.durationMinutes?.toString() ?? '')
+  const [isEditing, setIsEditing] = useState(false)
+  const via = transportNodes.find(poi => poi.id === segment?.viaPoiId)
+  const summary = [segment?.mode ? transportModeLabels[segment.mode] : '添加交通', segment?.durationMinutes ? `${segment.durationMinutes} 分钟` : '', via?.name].filter(Boolean).join(' · ')
 
   function saveDuration() {
     const value = durationDraft.trim()
@@ -514,12 +533,13 @@ function TransportSegmentItem({ fromPoi, toPoi, transportNodes, segment, onChang
 
   return <div className="transport-segment" aria-label={`${fromPoi.name}到${toPoi.name}的交通段`}>
     <span className="transport-segment-line" aria-hidden="true">↓</span>
-    <div className="transport-segment-controls"><span className="transport-segment-route" title={`${fromPoi.name}前往${toPoi.name}`}>{fromPoi.name} → {toPoi.name}</span><select aria-label={`${fromPoi.name}到${toPoi.name}的交通节点`} value={segment?.viaPoiId ?? ''} onChange={(event) => onChange({ viaPoiId: event.target.value || null })}><option value="">不经节点</option>{transportNodes.map((poi) => <option key={poi.id} value={poi.id}>{poi.name} · {poi.transportType ?? '交通'}</option>)}</select><select aria-label={`${fromPoi.name}到${toPoi.name}的交通方式`} value={segment?.mode ?? ''} onChange={(event) => onChange({ mode: event.target.value ? event.target.value as TransportMode : null })}><option value="">待补充</option>{(Object.entries(transportModeLabels) as Array<[TransportMode, string]>).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select><label className="transport-duration"><input aria-label={`${fromPoi.name}到${toPoi.name}的预计分钟数`} type="number" inputMode="numeric" min="1" max="1440" value={durationDraft} onChange={(event) => setDurationDraft(event.target.value)} onBlur={saveDuration} placeholder="分钟" /><span>分</span></label></div>
+    <div className="transport-segment-body"><button className="transport-summary" type="button" aria-expanded={isEditing} onClick={() => { if (isEditing) saveDuration(); setIsEditing(!isEditing) }}><span>{summary}</span><small>{isEditing ? '收起' : '编辑'}</small></button>{isEditing && <div className="transport-segment-controls"><span className="transport-segment-route" title={`${fromPoi.name}前往${toPoi.name}`}>{fromPoi.name} → {toPoi.name}</span><select aria-label={`${fromPoi.name}到${toPoi.name}的交通节点`} value={segment?.viaPoiId ?? ''} onChange={(event) => onChange({ viaPoiId: event.target.value || null })}><option value="">不经节点</option>{transportNodes.map((poi) => <option key={poi.id} value={poi.id}>{poi.name} · {poi.transportType ?? '交通'}</option>)}</select><select aria-label={`${fromPoi.name}到${toPoi.name}的交通方式`} value={segment?.mode ?? ''} onChange={(event) => onChange({ mode: event.target.value ? event.target.value as TransportMode : null })}><option value="">待补充</option>{(Object.entries(transportModeLabels) as Array<[TransportMode, string]>).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select><label className="transport-duration"><input aria-label={`${fromPoi.name}到${toPoi.name}的预计分钟数`} type="number" inputMode="numeric" min="1" max="1440" value={durationDraft} onChange={(event) => setDurationDraft(event.target.value)} onBlur={saveDuration} placeholder="分钟" /><span>分</span></label></div>}</div>
   </div>
 }
 
 function DayTimelineItem({ poi, index, selected, isDragging, onSelect, onChangeNote, onChangePart }: { poi: Poi; index: number; selected: boolean; isDragging: boolean; onSelect: () => void; onChangeNote: (note: string) => void; onChangePart: (dayPart: DayPart | null) => void }) {
   const [noteDraft, setNoteDraft] = useState(poi.note ?? '')
+  const [isNoteEditing, setIsNoteEditing] = useState(false)
   const { attributes, listeners, setNodeRef: setDraggableRef, transform } = useDraggable({ id: `day-timeline:${poi.id}`, data: { poiId: poi.id } })
   const { setNodeRef: setDroppableRef, isOver } = useDroppable({ id: `day-timeline-drop:${poi.id}`, data: { poiId: poi.id } })
   const style = transform ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` } : undefined
@@ -535,7 +555,8 @@ function DayTimelineItem({ poi, index, selected, isDragging, onSelect, onChangeN
 
   return <article className={`day-timeline-item ${selected ? 'is-selected' : ''} ${isDragging ? 'is-dragging' : ''} ${isOver && !isDragging ? 'is-drag-over' : ''}`} ref={setNodeRef} style={style}>
     <button className="day-timeline-main" type="button" onClick={onSelect}><span className="day-drag-handle" {...listeners} {...attributes} aria-label={`拖拽${poi.name}调整顺序`} title="拖拽调整顺序">⠿</span><span className="day-order-number">{index + 1}</span><span><b>{poi.name}</b><small>{poi.priority === 'must' ? '必去' : poi.priority === 'maybe' ? '待定' : poi.category}</small></span></button>
-    <div className="day-timeline-actions"><div className="day-part-options" aria-label={`${poi.name}的时段`}><button type="button" aria-pressed={!poi.dayPart} onClick={() => onChangePart(null)}>未定</button>{(Object.entries(dayPartLabels) as Array<[DayPart, string]>).map(([value, label]) => <button key={value} type="button" aria-pressed={poi.dayPart === value} onClick={() => onChangePart(value)}>{label}</button>)}</div><label className="poi-inline-note"><input aria-label={`${poi.name}的备注`} value={noteDraft} onChange={(event) => setNoteDraft(event.target.value)} onBlur={savePoiNote} maxLength={100} placeholder="地点备注…" /></label></div>
+    <div className="day-timeline-actions"><select className="day-part-select" aria-label={`${poi.name}的时段`} value={poi.dayPart ?? ''} onChange={event => onChangePart(event.target.value ? event.target.value as DayPart : null)}><option value="">时段未定</option>{(Object.entries(dayPartLabels) as Array<[DayPart, string]>).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div>
+    <div className="timeline-note">{isNoteEditing ? <label><span className="sr-only">{poi.name}的备注</span><textarea autoFocus aria-label={`${poi.name}的备注`} value={noteDraft} onChange={event => setNoteDraft(event.target.value)} onBlur={() => { savePoiNote(); setIsNoteEditing(false) }} onKeyDown={event => { if (event.key === 'Escape') { setNoteDraft(poi.note ?? ''); setIsNoteEditing(false) } }} maxLength={300} placeholder="想在这里做什么？" /></label> : <button type="button" aria-label={`编辑${poi.name}的备注`} onClick={() => setIsNoteEditing(true)} title={poi.note || '添加玩法、打卡或提醒'}>{poi.note || '＋ 添加备注'}</button>}</div>
   </article>
 }
 
@@ -584,13 +605,17 @@ function PoiDetailDialog({ poi, onClose, onConfirmLocation }: { poi: Poi; onClos
   return <div className="map-poi-card"><section className="day-picker poi-detail-dialog" role="dialog" aria-modal="false" aria-label={`${poi.name}的地点详情`} onClick={(event) => event.stopPropagation()}><button className="poi-card-close" type="button" aria-label="关闭地点详情" onClick={() => { saveNote(); onClose() }}>×</button><div><p className="eyebrow">地点详情</p><h2>{poi.name}</h2></div><p className="poi-meta">{poi.category}{poi.category === '交通' ? ` · ${poi.transportType ?? '其他'}` : ''} · 已收录 {poi.sources.length} 条攻略来源</p><section className="poi-quick-arrangement"><p>安排日期</p><div className="quick-day-options">{[{ day: null, label: '未安排' }, ...Array.from({ length: plan.days }, (_, i) => ({ day: i + 1, label: `Day ${i + 1}` }))].map((option) => <button type="button" key={option.label} aria-pressed={poi.scheduledDay === option.day} onClick={() => dispatch({ type: 'set-poi-arrangement', poiId: poi.id, scheduledDay: option.day })}>{option.label}</button>)}</div><label>优先级<select value={poi.priority} onChange={(event) => dispatch({ type: 'set-poi-arrangement', poiId: poi.id, priority: event.target.value as PoiPriority })}><option value="normal">普通</option><option value="must">必去</option><option value="maybe">待定</option></select></label></section><section className="location-card"><div><span>地图位置</span><b>{locationLabel}</b></div><button type="button" onClick={onConfirmLocation}>{poi.locationStatus === 'confirmed' ? '重新确认' : '确认位置'}</button></section><section className="poi-note-card"><label htmlFor={`poi-note-${poi.id}`}>我的备注</label><textarea id={`poi-note-${poi.id}`} value={noteDraft} onChange={(event) => setNoteDraft(event.target.value)} onBlur={saveNote} maxLength={300} placeholder="例如：傍晚去看日落；打卡临湖机位；记得提前预约。" /><small>离开输入框后自动保存</small></section>{sourceError && <p className="import-error" role="alert">{sourceError}</p>}<details className="source-details"><summary><span>攻略来源</span><small>{poi.sources.length} 条 · 展开查看</small></summary><div className="source-list">{poi.sources.length ? poi.sources.map((source, index) => <article className="source-record" key={`${source.importedAt}-${index}`}>{editingIndex === index ? <><label>攻略标题<input aria-label="来源标题" value={draftTitle} onChange={(event) => setDraftTitle(event.target.value)} /></label><label>原帖链接（可不填）<input aria-label="来源链接" type="url" value={draftUrl} onChange={(event) => setDraftUrl(event.target.value)} placeholder="https://www.xiaohongshu.com/..." /></label><div className="source-actions"><button type="button" className="source-save" onClick={saveSource}>保存</button><button type="button" onClick={() => setEditingIndex(null)}>取消</button></div></> : <><b>{source.title}</b><span>{source.method === 'text' ? '粘贴文字' : source.method === 'manual' ? '手动添加' : '链接导入'} · {new Date(source.importedAt).toLocaleDateString('zh-CN')}</span>{source.url && <a href={source.url} target="_blank" rel="noreferrer">打开原笔记</a>}<div className="source-actions"><button type="button" onClick={() => startEditing(index)}>编辑</button><button className="source-delete" type="button" onClick={() => dispatch({ type: 'remove-poi-source', poiId: poi.id, sourceIndex: index })}>删除</button></div></>}</article>) : <p className="empty-branch">还没有来源记录。</p>}</div></details><div className="dialog-actions"><button className="primary-button" type="button" onClick={onClose}>完成 <span>→</span></button></div></section></div>
 }
 
-function MapLocationDialog({ poi, cityName, cityAdcode, onClose }: { poi: Poi; cityName: string; cityAdcode: string; onClose: () => void }) {
+function MapLocationDialog({ poi, cityName, cityAdcode, isStaticDemo, onClose }: { poi: Poi; cityName: string; cityAdcode: string; isStaticDemo: boolean; onClose: () => void }) {
   const { dispatch } = usePlan()
   const [results, setResults] = useState<MapPoiCandidate[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   async function findCandidates() {
+    if (isStaticDemo) {
+      setError('公开演示版不提供在线地点搜索。你仍可保留地点并完成路线整理；完整线上版会在服务端安全查询候选位置。')
+      return
+    }
     setIsLoading(true)
     setError(null)
     try {

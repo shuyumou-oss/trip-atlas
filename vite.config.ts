@@ -15,4 +15,12 @@ function localApi(): Plugin {
     },
   }
 }
-export default defineConfig({ plugins: [react(), localApi()] })
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, '.', '')
+  return {
+    // GitHub Pages projects live below /<repository>/ rather than at a domain root.
+    // VITE_BASE_PATH is intentionally supplied only by the Pages deployment workflow.
+    base: env.VITE_BASE_PATH || '/',
+    plugins: [react(), localApi()],
+  }
+})

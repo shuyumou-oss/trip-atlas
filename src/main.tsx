@@ -5,6 +5,8 @@ import { PlanProvider } from './features/plan/PlanProvider'
 import '../style.css'
 import './step-two.css'
 import './release.css'
+import './workspace.css'
+import './travel-book.css'
 
 const root = document.getElementById('root')
 

@@ -1,5 +1,22 @@
 # 发布指南
 
+## GitHub Pages 静态演示
+
+当前公开演示采用 GitHub Pages 的 `main` 分支 `/docs` 文件夹发布，不需要把 GitHub 工作流权限交给项目。首次使用时，在 GitHub 仓库的 **Settings → Pages** 中将 Source 设为 **Deploy from a branch**，选择 `main` 与 `/docs`，然后保存。发布完成后的地址格式为：
+
+```text
+https://<GitHub 用户名>.github.io/<仓库名>/
+```
+
+该版本故意不配置 `AMAP_WEB_SERVICE_KEY`、`AI_API_KEY` 或其他服务端密钥。因此规则识别、地点池、安排、导出与恢复可用；在线城市查询、地图地点候选搜索及可选 AI 提取不可用，界面会给出对应提示。
+
+若希望静态演示出现高德底图，可在本地构建公开版前配置下列**浏览器端**变量，并在高德控制台把 Pages 域名加入 Web JS Key 的域名白名单：
+
+- `VITE_AMAP_JS_KEY`
+- `VITE_AMAP_SECURITY_JS_CODE`
+
+这些变量不是 Web 服务 Key；仍应限制可用域名。没有配置时地图区域会受控降级，地点整理不受影响。
+
 ## GitHub
 
 本地仓库已准备好。连接你的 GitHub 账号后，创建名为 trip-atlas 的仓库，提交项目源代码。公开前检查 git status，确认 .env.local、node_modules、dist 未被纳入提交。
@@ -42,7 +59,6 @@ gh repo create trip-atlas --public --source=. --remote=origin --push
 
 ## 当前外部待办
 
-- GitHub 登录及创建远程仓库。
 - Vercel 账号连接和项目导入。
 - 设置生产环境变量，确认高德线上域名配置。
 - 可选：配置模型 API 并进行真实效果验收。

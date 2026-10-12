@@ -6,11 +6,12 @@ const categories: PoiCategory[] = ['景点', '美食', '咖啡 / 休闲', '街�
 const transportTypes: TransportType[] = ['地铁站', '火车 / 高铁站', '机场', '公交站', '码头', '停车点', '其他']
 
 export function Welcome({ onCreate, onClose }: { onCreate: () => void; onClose: () => void }) {
+  const appBaseUrl = import.meta.env.BASE_URL
   return <div className="day-picker-backdrop"><section className="welcome-dialog day-picker" role="dialog" aria-modal="true" aria-label="欢迎来到行囊">
     <p className="eyebrow">TRIP ATLAS · 行囊</p><h2>收藏了很多攻略，<br />这次，串成自己的旅行。</h2>
     <p className="dialog-copy">把攻略里的地点放在同一张地图上，按兴趣挑选，再慢慢安排到每一天。</p>
     <ol className="welcome-steps"><li><b>收拢地点</b><span>粘贴攻略文字，检查识别结果。</span></li><li><b>对照地图</b><span>确认位置，标记必去和待定。</span></li><li><b>安排每天</b><span>拖拽排序，添加备注和交通安排。</span></li></ol>
-    <div className="welcome-actions"><a className="primary-button" href="/?demo=1">体验杭州示例 →</a><button className="subtle-button" onClick={onCreate}>创建我的旅行计划</button></div>
+    <div className="welcome-actions"><a className="primary-button" href={`${appBaseUrl}?demo=1`}>体验杭州示例 →</a><button className="subtle-button" onClick={onCreate}>创建我的旅行计划</button></div>
     <p className="input-note">计划仅保存在当前浏览器，可随时导出备份。攻略链接用来回看来源，正文需要另行粘贴。</p>
     <button className="welcome-dismiss" onClick={onClose}>先看看工作台</button>
   </section></div>
